@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 #include "hardware/spi.h"
@@ -15,7 +16,9 @@
 #define SPI_MISO_PIN 19
 
 #define HEADER_SIZE 8
-#define LED_COUNT (8 * 32)
+#define RENDER_WIDTH 32
+#define RENDER_HEIGHT 8
+#define LED_COUNT (RENDER_WIDTH * RENDER_HEIGHT)
 #define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
 #define BAUDRATE (8 * 1000 * 1000)
 
@@ -71,6 +74,8 @@ public:
 
 // ws2812
 ////////////
+std::vector<std::vector<RGBColor>> lattice;
+
 static inline void put_pixel(uint32_t pixel_grb) {
     pio_sm_put_blocking(pio0, 0, pixel_grb << 8u);
 }
@@ -80,6 +85,12 @@ static void initialize_ws2812() {
     int sm = 0;
     uint offset = pio_add_program(pio, &ws2812_program);
     ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, WS2812_HAS_W);
+
+    lattice = {};
+    lattice.resize(RENDER_WIDTH);
+    for (auto &row: lattice) {
+        row.resize(RENDER_HEIGHT, {0, 0, 0});
+    };
     std::cout << "ws2812 ready" << std::endl;
 
     for (int i = 0; i < LED_COUNT; i++) {
@@ -100,6 +111,24 @@ static void initialize_ws2812() {
     std::cout << "ws2812 showing test pattern" << std::endl;
 }
 
+static void render_lattice() {
+    for (int x = RENDER_WIDTH - 1; x >= 0; x--) {
+        if (x % 2 != 0) {
+            for (int y = 0; y < RENDER_HEIGHT; y++) {
+                auto color = lattice[x][y];
+                auto serialized_color = color.serialize();
+                put_pixel(serialized_color);
+            }
+        } else {
+            for (int y = RENDER_HEIGHT - 1; y >= 0; y--) {
+                auto color = lattice[x][y];
+                auto serialized_color = color.serialize();
+                put_pixel(serialized_color);
+            }
+        }
+    }
+}
+
 
 // main
 //////////
@@ -113,13 +142,20 @@ int main() {
     while (true) {
         spi_write_read_blocking(SPI_DEVICE, transmit_buffer, receive_buffer, SPI_PACKET_SIZE);
         if (spi_header_is_valid()) {
+            auto x = 0;
+            auto y = 0;
             for (int i = HEADER_SIZE; i < SPI_PACKET_SIZE; i += 3) {
                 auto color = RGBColor(receive_buffer[i],
                                       receive_buffer[i + 1],
                                       receive_buffer[i + 2]);
-                auto serialized_color = color.serialize();
-                put_pixel(serialized_color);
+                lattice[x][y] = color;
+                x++;
+                if (x % RENDER_WIDTH == 0) {
+                    x = 0;
+                    y++;
+                }
             }
+            render_lattice();
         } else {
             std::cout << "encountered invalid spi header, re-initializing spi..." << std::endl;
             // the spi hardware will happily begin reading halfway through a transmission, as well as other nonsense
