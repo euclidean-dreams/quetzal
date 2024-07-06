@@ -6,24 +6,36 @@
 #include "hardware/clocks.h"
 #include "generated/ws2812.pio.h"
 
-// spi
-/////////
+// definitions
+/////////////////
+#define SPI_DEVICE spi0
+#define SPI_MOSI_PIN 16
+#define SPI_CHIP_SELECT_PIN 17
+#define SPI_CLOCK_PIN 18
+#define SPI_MISO_PIN 19
+
 #define HEADER_SIZE 8
 #define LED_COUNT (8 * 32)
 #define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
 #define BAUDRATE (8 * 1000 * 1000)
 
+#define WS2812_HAS_W false
+#define WS2812_PIN 2
+
+
+// spi
+/////////
 uint8_t transmit_buffer[SPI_PACKET_SIZE];
 uint8_t receive_buffer[SPI_PACKET_SIZE];
 
 static void initialize_spi() {
-    spi_init(spi_default, BAUDRATE);
-    spi_set_slave(spi_default, true);
-    spi_set_format(spi0, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
-    gpio_set_function(PICO_DEFAULT_SPI_RX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(PICO_DEFAULT_SPI_SCK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(PICO_DEFAULT_SPI_TX_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(PICO_DEFAULT_SPI_CSN_PIN, GPIO_FUNC_SPI);
+    spi_init(SPI_DEVICE, BAUDRATE);
+    spi_set_slave(SPI_DEVICE, true);
+    spi_set_format(SPI_DEVICE, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
+    gpio_set_function(SPI_MOSI_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(SPI_CHIP_SELECT_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(SPI_CLOCK_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(SPI_MISO_PIN, GPIO_FUNC_SPI);
     std::cout << "spi ready" << std::endl;
 }
 
@@ -59,9 +71,6 @@ public:
 
 // ws2812
 ////////////
-#define IS_RGBW false
-#define WS2812_PIN 2
-
 static inline void put_pixel(uint32_t pixel_grb) {
     pio_sm_put_blocking(pio0, 0, pixel_grb << 8u);
 }
@@ -70,7 +79,7 @@ static void initialize_ws2812() {
     PIO pio = pio0;
     int sm = 0;
     uint offset = pio_add_program(pio, &ws2812_program);
-    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
+    ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, WS2812_HAS_W);
     std::cout << "ws2812 ready" << std::endl;
 
     for (int i = 0; i < LED_COUNT; i++) {
@@ -102,7 +111,7 @@ int main() {
     initialize_ws2812();
 
     while (true) {
-        spi_write_read_blocking(spi_default, transmit_buffer, receive_buffer, SPI_PACKET_SIZE);
+        spi_write_read_blocking(SPI_DEVICE, transmit_buffer, receive_buffer, SPI_PACKET_SIZE);
         if (spi_header_is_valid()) {
             for (int i = HEADER_SIZE; i < SPI_PACKET_SIZE; i += 3) {
                 auto color = RGBColor(receive_buffer[i],
