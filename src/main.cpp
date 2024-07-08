@@ -28,6 +28,8 @@
 
 // spi
 /////////
+uint8_t previous_header_index = -1;
+
 uint8_t transmit_buffer[SPI_PACKET_SIZE];
 uint8_t receive_buffer[SPI_PACKET_SIZE];
 
@@ -49,6 +51,14 @@ static bool spi_header_is_valid() {
         receive_buffer[3] == 8 &&
         receive_buffer[4] == 7 &&
         receive_buffer[5] == 5) {
+        uint8_t header_index = receive_buffer[6];
+        auto expected_header_index = previous_header_index;
+        expected_header_index++;
+        expected_header_index %= 256;
+        if (header_index != expected_header_index) {
+            printf("\nheader index mismatch - expected: %02x actual: %02x\n", expected_header_index, header_index);
+        }
+        previous_header_index = header_index;
         return true;
     } else {
         return false;
