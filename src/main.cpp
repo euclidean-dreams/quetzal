@@ -16,8 +16,8 @@
 #define SPI_MISO_PIN 19
 
 #define HEADER_SIZE 8
-#define RENDER_WIDTH 32
-#define RENDER_HEIGHT 8
+#define RENDER_WIDTH 277
+#define RENDER_HEIGHT 1
 #define LED_COUNT (RENDER_WIDTH * RENDER_HEIGHT)
 #define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
 #define BAUDRATE (8 * 1000 * 1000)
@@ -107,17 +107,38 @@ static void initialize_ws2812() {
         put_pixel(RGBColor(0, 0, 0).serialize());
     }
     sleep_ms(10);
+    for (int i = 0; i < LED_COUNT; i++) {
+        auto size = 10;
+        auto start_index = i - size / 2;
+        auto end_index = i + size / 2;
 
-    for (int i = 0; i < 2; i++) {
-        put_pixel(RGBColor(0, 0, 0).serialize());
+        for (int j = 0; j < start_index; j++) {
+            put_pixel(RGBColor(0, 0, 0).serialize());
+        }
+        for (int j = start_index; j < end_index && j < LED_COUNT; j++) {
+            put_pixel(RGBColor(0, 33, 77).serialize());
+        }
+        for (int j = end_index; j < LED_COUNT; j++) {
+            put_pixel(RGBColor(0, 0, 0).serialize());
+        }
+        sleep_ms(10);
     }
-    for (int i = 0; i < 2; i++) {
-        put_pixel(RGBColor(0, 33, 77).serialize());
+    for (int i = LED_COUNT; i > 0; i--) {
+        auto size = 10;
+        auto start_index = i - size / 2;
+        auto end_index = i + size / 2;
+
+        for (int j = 0; j < start_index; j++) {
+            put_pixel(RGBColor(0, 0, 0).serialize());
+        }
+        for (int j = start_index; j < end_index && j < LED_COUNT; j++) {
+            put_pixel(RGBColor(0, 33, 77).serialize());
+        }
+        for (int j = end_index; j < LED_COUNT; j++) {
+            put_pixel(RGBColor(0, 0, 0).serialize());
+        }
+        sleep_ms(10);
     }
-    for (int i = 0; i < 2; i++) {
-        put_pixel(RGBColor(0, 77, 33).serialize());
-    }
-    sleep_ms(10);
     std::cout << "ws2812 showing test pattern" << std::endl;
 }
 
