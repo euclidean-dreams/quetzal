@@ -6,9 +6,13 @@
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "generated/ws2812.pio.h"
+#include "DmxOutput.h"
 
 // definitions
 /////////////////
+#define RENDER_WIDTH 9
+#define RENDER_HEIGHT 1
+
 #define SPI_DEVICE spi0
 #define SPI_MOSI_PIN 16
 #define SPI_CHIP_SELECT_PIN 17
@@ -16,18 +20,27 @@
 #define SPI_MISO_PIN 19
 
 #define HEADER_SIZE 8
-#define RENDER_WIDTH 277
-#define RENDER_HEIGHT 1
 #define LED_COUNT (RENDER_WIDTH * RENDER_HEIGHT)
-#define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
 #define BAUDRATE (8 * 1000 * 1000)
 
 #define WS2812_HAS_W false
 #define WS2812_PIN 2
 
 
+// dmx
+/////////
+DmxOutput dmx;
+#define DMX_FRAME_LENGTH 512
+uint8_t universe[DMX_FRAME_LENGTH + 1];
+
 // spi
 /////////
+#ifdef DMX
+#define SPI_PACKET_SIZE (HEADER_SIZE + DMX_FRAME_LENGTH)
+#elifdef KEYHOLE
+#define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
+#endif
+
 uint8_t previous_header_index = -1;
 
 uint8_t transmit_buffer[SPI_PACKET_SIZE];
@@ -74,7 +87,8 @@ public:
     uint8_t green;
     uint8_t blue;
 
-    RGBColor(uint8_t red, uint8_t green, uint8_t blue) : red{red}, green{green}, blue{blue} {}
+    RGBColor(uint8_t red, uint8_t green, uint8_t blue) : red{red}, green{green}, blue{blue} {
+    }
 
     uint32_t serialize() {
         return ((uint32_t) (green) << 16) | ((uint32_t) (red) << 8) | (uint32_t) (blue);
@@ -160,14 +174,9 @@ static void render_lattice() {
     }
 }
 
-
-// main
-//////////
-int main() {
-    stdio_init_all();
-    std::cout << "(~) quetzal init..." << std::endl;
-
-    initialize_spi();
+// keyhole
+/////////////
+void keyhole_loop() {
     initialize_ws2812();
 
     while (true) {
@@ -194,5 +203,49 @@ int main() {
             initialize_spi();
         }
     }
+}
 
+
+// dmx
+/////////////
+void dmx_loop() {
+    dmx.begin(0);
+    for (int i = 1; i < DMX_FRAME_LENGTH + 1; i++) {
+        universe[i] = 0;
+    }
+
+    while (true) {
+        spi_write_read_blocking(SPI_DEVICE, transmit_buffer, receive_buffer, SPI_PACKET_SIZE);
+        if (spi_header_is_valid()) {
+            for (int i = 1; i < DMX_FRAME_LENGTH + 1; i++) {
+                universe[i] = receive_buffer[i - 1 + HEADER_SIZE];
+            }
+            while (dmx.busy()) {
+                /* Do nothing while the DMX frame transmits */
+            }
+            dmx.write(universe, DMX_FRAME_LENGTH);
+        } else {
+            std::cout << "encountered invalid spi header, re-initializing spi..." << std::endl;
+            // the spi hardware will happily begin reading halfway through a transmission, as well as other nonsense
+            // if we encounter a transmission without a valid header, drop it and reset the SPI
+            initialize_spi();
+        }
+    }
+}
+
+
+// main
+//////////
+int main() {
+    stdio_init_all();
+    std::cout << "(~) quetzal init..." << std::endl;
+
+    initialize_spi();
+    std::cout << "(~) spi init..." << std::endl;
+
+#ifdef DMX
+    dmx_loop();
+#elifdef KEYHOLE
+    keyhole_loop();
+#endif
 }

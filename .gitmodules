@@ -1,0 +1,3 @@
+[submodule "lib/Pico-DMX"]
+	path = lib/Pico-DMX
+	url = git@github.com:jostlowe/Pico-DMX.git
