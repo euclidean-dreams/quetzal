@@ -1,3 +1,6 @@
 [submodule "lib/Pico-DMX"]
 	path = lib/Pico-DMX
 	url = git@github.com:jostlowe/Pico-DMX.git
+[submodule "lib/cosmology"]
+	path = lib/cosmology
+	url = git@github.com:euclidean-dreams/cosmology.git
