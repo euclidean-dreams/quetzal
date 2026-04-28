@@ -34,6 +34,8 @@ set(
         src/main.cpp
         src/lantern.h
         src/paradigm.h
+        src/quetzal.h
+        src/spi_connection.h
 )
 
 add_executable(quetzal ${SOURCE_FILES})

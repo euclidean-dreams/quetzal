@@ -10,7 +10,6 @@ using namespace cosmology;
 #define RENDER_WIDTH 300
 #define RENDER_HEIGHT 1
 
-#define SPI_DEVICE spi0
 #define SPI_MOSI_PIN 16
 #define SPI_CHIP_SELECT_PIN 17
 #define SPI_CLOCK_PIN 18
