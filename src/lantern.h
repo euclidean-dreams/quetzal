@@ -4,6 +4,8 @@
 #include "pico/stdlib.h"
 #include "generated/ws2812.pio.h"
 
+#define WS2812_HAS_W false
+#define WS2812_PIN 2
 
 namespace quetzal {
 class Lantern : public Name {

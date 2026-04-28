@@ -10,6 +10,12 @@ DmxOutput dmx;
 #define DMX_FRAME_LENGTH 512
 uint8_t universe[DMX_FRAME_LENGTH + 1];
 
+#ifdef DMX
+#define SPI_PACKET_SIZE (HEADER_SIZE + DMX_FRAME_LENGTH)
+#elifdef KEYHOLE
+#define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
+#endif
+
 namespace quetzal {
 class Quetzal : public Name {
 public:
@@ -19,7 +25,7 @@ public:
 
     Quetzal() {
         cosmology = mkuptr<Cosmology>(RENDER_WIDTH, RENDER_HEIGHT, 0, Impressions::workshop);
-        spi_connection = mkuptr<SPIConnection>();
+        spi_connection = mkuptr<SPIConnection>(SPI_PACKET_SIZE);
         std::cout << "spi ready" << std::endl;
 
         lantern = mkuptr<Lantern>(OBSERVATION_WIDTH, OBSERVATION_HEIGHT);
@@ -37,9 +43,9 @@ public:
                 auto y = 0;
                 for (int i = HEADER_SIZE; i < SPI_PACKET_SIZE; i += 3) {
                     auto color = Color{
-                        spi_connection->receive_buffer[i],
-                        spi_connection->receive_buffer[i + 1],
-                        spi_connection->receive_buffer[i + 2]
+                        spi_connection->reception[i],
+                        spi_connection->reception[i + 1],
+                        spi_connection->reception[i + 2]
                     };
                     lantern->lattice.set_pith(x, y, Pith{color});
                     x++;
@@ -54,7 +60,7 @@ public:
                 // the spi hardware will happily begin reading halfway through a transmission, as well as other nonsense
                 // if we encounter a transmission without a valid header, drop it and reset the SPI
 
-                spi_connection = mkuptr<SPIConnection>();
+                spi_connection = mkuptr<SPIConnection>(SPI_PACKET_SIZE);
             }
         }
     }
@@ -69,7 +75,7 @@ public:
             spi_connection->exchange();
             if (spi_connection->spi_header_is_valid()) {
                 for (int i = 1; i < DMX_FRAME_LENGTH + 1; i++) {
-                    universe[i] = spi_connection->receive_buffer[i - 1 + HEADER_SIZE];
+                    universe[i] = spi_connection->reception[i - 1 + HEADER_SIZE];
                 }
                 while (dmx.busy()) {
                     /* Do nothing while the DMX frame transmits */
@@ -79,7 +85,7 @@ public:
                 std::cout << "encountered invalid spi header, re-initializing spi..." << std::endl;
                 // the spi hardware will happily begin reading halfway through a transmission, as well as other nonsense
                 // if we encounter a transmission without a valid header, drop it and reset the SPI
-                spi_connection = mkuptr<SPIConnection>();
+                spi_connection = mkuptr<SPIConnection>(SPI_PACKET_SIZE);
             }
         }
     }

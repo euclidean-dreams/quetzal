@@ -4,21 +4,29 @@
 #include "hardware/pio.h"
 
 #define SPI_DEVICE spi0
-#ifdef DMX
-#define SPI_PACKET_SIZE (HEADER_SIZE + DMX_FRAME_LENGTH)
-#elifdef KEYHOLE
-#define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
-#endif
+#define SPI_MOSI_PIN 16
+#define SPI_CHIP_SELECT_PIN 17
+#define SPI_CLOCK_PIN 18
+#define SPI_MISO_PIN 19
+#define BAUDRATE (8 * 1000 * 1000)
 
+#define HEADER_SIZE 8
+#define LED_COUNT (RENDER_WIDTH * RENDER_HEIGHT)
 
 namespace quetzal {
 class SPIConnection : public Name {
 public:
-    uint8_t transmit_buffer[SPI_PACKET_SIZE];
-    uint8_t receive_buffer[SPI_PACKET_SIZE];
+    vect<uint8_t> transmission;
+    vect<uint8_t> reception;
+    int packet_size;
     uint8_t previous_header_index = -1;
 
-    SPIConnection() {
+    SPIConnection(int packet_size) :
+        transmission{},
+        reception{},
+        packet_size{packet_size} {
+        transmission.resize(packet_size);
+        reception.resize(packet_size);
         spi_init(SPI_DEVICE, BAUDRATE);
         spi_set_slave(SPI_DEVICE, true);
         spi_set_format(SPI_DEVICE, 8, SPI_CPOL_1, SPI_CPHA_1, SPI_MSB_FIRST);
@@ -33,13 +41,13 @@ public:
     }
 
     bool spi_header_is_valid() {
-        if (receive_buffer[0] == 1 &&
-            receive_buffer[1] == 2 &&
-            receive_buffer[2] == 4 &&
-            receive_buffer[3] == 8 &&
-            receive_buffer[4] == 7 &&
-            receive_buffer[5] == 5) {
-            uint8_t header_index = receive_buffer[6];
+        if (reception[0] == 1 &&
+            reception[1] == 2 &&
+            reception[2] == 4 &&
+            reception[3] == 8 &&
+            reception[4] == 7 &&
+            reception[5] == 5) {
+            uint8_t header_index = reception[6];
             auto expected_header_index = previous_header_index;
             expected_header_index++;
             expected_header_index %= 256;
@@ -54,7 +62,7 @@ public:
     }
 
     void exchange() {
-        spi_write_read_blocking(SPI_DEVICE, transmit_buffer, receive_buffer, SPI_PACKET_SIZE);
+        spi_write_read_blocking(SPI_DEVICE, transmission.data(), reception.data(), packet_size);
     }
 };
 }
