@@ -5,17 +5,17 @@
 #include "generated/ws2812.pio.h"
 
 #define WS2812_HAS_W false
-#define WS2812_PIN 2
+#define WS2812_PIN 15
 
 namespace quetzal {
 class Lantern : public Name {
 public:
-    Lattice lattice;
+    uptr<Lattice> lattice;
     int led_count;
 
     Lantern(int width, int height)
-        : lattice{width, height, Pith{{0, 0, 0}}, false},
-          led_count{lattice.width * lattice.height} {
+        : led_count{width * height} {
+        lattice = mkuptr<Lattice>(width, height, Pith{{0, 0, 0}}, false);
         auto pio = pio0;
         int sm = 0;
         uint offset = pio_add_program(pio, &ws2812_program);
@@ -27,8 +27,8 @@ public:
     }
 
     void show_test_pattern() {
-        for (int i = 0; i < led_count; i++) {
-            auto size = 10;
+        for (int i = 0; i < led_count; i += led_count / 10) {
+            auto size = 3;
             auto start_index = i - size / 2;
             auto end_index = i + size / 2;
 
@@ -43,8 +43,8 @@ public:
             }
             sleep_ms(10);
         }
-        for (int i = led_count; i > 0; i--) {
-            auto size = 10;
+        for (int i = led_count; i > 0; i -= led_count / 10) {
+            auto size = 3;
             auto start_index = i - size / 2;
             auto end_index = i + size / 2;
 
@@ -69,20 +69,34 @@ public:
         pio_sm_put_blocking(pio0, 0, pixel_grb << 8u);
     }
 
-    void show() {
-        for (int x = lattice.width - 1; x >= 0; x--) {
+    void switch_lattice(uptr<Lattice> fresh_lattice) {
+        lattice = mv(fresh_lattice);
+    }
+
+    void show_switchback() {
+        for (int x = lattice->width - 1; x >= 0; x--) {
             if (x % 2 != 0) {
-                for (int y = 0; y < lattice.height; y++) {
-                    auto pith = lattice.get_pith(x, y);
+                for (int y = 0; y < lattice->height; y++) {
+                    auto pith = lattice->get_pith(x, y);
                     auto serialized_color = serialize_color(pith.color);
                     put_pixel(serialized_color);
                 }
             } else {
-                for (int y = lattice.height - 1; y >= 0; y--) {
-                    auto pith = lattice.get_pith(x, y);
+                for (int y = lattice->height - 1; y >= 0; y--) {
+                    auto pith = lattice->get_pith(x, y);
                     auto serialized_color = serialize_color(pith.color);
                     put_pixel(serialized_color);
                 }
+            }
+        }
+    }
+
+    void show_toroidalack() {
+        for (int y = 0; y < RENDER_HEIGHT; y++) {
+            for (int x = 0; x < RENDER_WIDTH; x++) {
+                auto pith = lattice->get_pith(x, y);
+                auto serialized_color = serialize_color(pith.color);
+                put_pixel(serialized_color);
             }
         }
     }

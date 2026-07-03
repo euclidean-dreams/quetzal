@@ -18,5 +18,7 @@ int main() {
     quetzal.dmx_loop();
 #elifdef KEYHOLE
     quetzal.keyhole_loop();
+#elifdef SIGURD
+    quetzal.sigurd_loop();
 #endif
 }

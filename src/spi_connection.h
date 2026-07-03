@@ -10,8 +10,15 @@
 #define SPI_MISO_PIN 19
 #define BAUDRATE (8 * 1000 * 1000)
 
-#define HEADER_SIZE 8
-#define LED_COUNT (RENDER_WIDTH * RENDER_HEIGHT)
+#define HEADER_SIZE 16
+
+#ifdef DMX
+#define SPI_PACKET_SIZE (HEADER_SIZE + DMX_FRAME_LENGTH)
+#elifdef KEYHOLE
+#define SPI_PACKET_SIZE (HEADER_SIZE + LED_COUNT * 3)
+#elifdef SIGURD
+#define SPI_PACKET_SIZE 0
+#endif
 
 namespace quetzal {
 class SPIConnection : public Name {
@@ -21,10 +28,10 @@ public:
     int packet_size;
     uint8_t previous_header_index = -1;
 
-    SPIConnection(int packet_size) :
+    SPIConnection() :
         transmission{},
         reception{},
-        packet_size{packet_size} {
+        packet_size{SPI_PACKET_SIZE} {
         transmission.resize(packet_size);
         reception.resize(packet_size);
         spi_init(SPI_DEVICE, BAUDRATE);
