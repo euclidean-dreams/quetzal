@@ -29,7 +29,7 @@ public:
 
         lantern->show_test_pattern();
         std::cout << "lantern showing test pattern" << std::endl;
-#ifdef SIGIN
+#ifdef SIGURD
         sigin = mkuptr<Sigin>(0);
         std::cout << "sigin ready" << std::endl;
 
