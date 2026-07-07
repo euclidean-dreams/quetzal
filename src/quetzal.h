@@ -39,8 +39,6 @@ public:
         equalizer = mkuptr<Equalizer>(0.01);
         std::cout << "equalizer ready" << std::endl;
 
-        cosmology = mkuptr<Cosmology>(RENDER_WIDTH, RENDER_HEIGHT, STFT_SIZE, Impressions::ambiance);
-        std::cout << "cosmology ready" << std::endl;
 #endif
 #ifdef KEYHOLE
         spi_connection = mkuptr<SPIConnection>();
@@ -50,6 +48,9 @@ public:
         spi_connection = mkuptr<SPIConnection>();
         std::cout << "spi ready" << std::endl;
 #endif
+
+        cosmology = mkuptr<Cosmology>(RENDER_WIDTH, RENDER_HEIGHT, STFT_SIZE, Impressions::ambiance);
+        std::cout << "cosmology ready" << std::endl;
     }
 
     void keyhole_loop() {
