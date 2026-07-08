@@ -24,6 +24,11 @@ public:
     uptr<Equalizer> equalizer;
 
     Quetzal() {
+        if (DEBUG) {
+            // sleep so minicom can establish a connection before logs start flowing
+            sleep_ms(5000);
+        }
+
         lantern = mkuptr<Lantern>(RENDER_WIDTH, RENDER_HEIGHT);
         std::cout << "lantern ready" << std::endl;
 
